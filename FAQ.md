@@ -18,7 +18,7 @@ It shouldn't, if the answer was a real `AskUserQuestion` call. The hook checks t
 
 ### My account has a 1M context window. Do I need to configure anything?
 
-Yes, one variable: `export CONTEXT_CHECK_WINDOW=1000000` (in your shell profile, or the `env` block of `~/.claude/settings.json`). The default is 200,000, the standard account tier, and the transcript carries no field that says which tier you're on, so the hook can't detect this on its own. Skip this on a 1M account and the thresholds compute against the wrong ceiling (550k/880k instead of 110k/176k), so the hook goes quiet for most of a real session and only fires once you're already deep into 1M-token territory.
+Yes, one variable: `export CONTEXT_CHECK_WINDOW=1000000` (in your shell profile, or the `env` block of `~/.claude/settings.json`). The default is 200,000, the standard account tier, and the transcript carries no field that says which tier you're on, so the hook can't detect this on its own. Skip this on a 1M account and the thresholds stay at 110k/176k, a fifth of your real ceiling, so the hook does the opposite of going quiet: it starts hard-firing once you're a normal fraction of the way into a long session and keeps re-firing on every Stop for however much further context you accumulate, since real auto-compaction is still hundreds of thousands of tokens away.
 
 ### Can the 55%/88% thresholds be changed?
 
