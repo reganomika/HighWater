@@ -2,6 +2,12 @@
 
 Notable changes to this project. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-07-21
+
+### Added
+
+- `displayName: "HighWater"` in `plugin.json`, so the `/plugin` picker shows proper casing instead of falling back to the lowercase `name`.
+
 ## [0.1.0] - 2026-07-21
 
 First tagged release. `plugin.json` had no `version` field before this, so Claude Code resolved every commit as its own version and installs auto-updated silently on `/plugin update`. Everything below folds into this one version since nothing was ever tagged before it.
