@@ -8,7 +8,7 @@
 export CONTEXT_CHECK_WINDOW=1000000
 ```
 
-Put it in your shell profile, or in the `env` block of `~/.claude/settings.json` so it applies regardless of shell.
+Put it in your shell profile, or in the `env` block of `~/.claude/settings.json` so it applies regardless of shell. Everything else about the checkpoint, the two thresholds, the cooldown, whether either tier fires at all, is also yours to change: see [CUSTOMIZE.md](CUSTOMIZE.md).
 
 ## As a plugin (recommended)
 

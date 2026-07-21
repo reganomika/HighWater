@@ -10,7 +10,7 @@ No. Claude Code loads hook registrations once, when a session starts, and never 
 
 ### The checkpoint keeps interrupting me. How do I make it stop?
 
-Three options depending on what you actually want. Turn it off entirely: `touch ~/.claude/hooks/context-check.disabled`, instant, no restart. Push the thresholds higher: `export CONTEXT_CHECK_WINDOW=<bigger number>` widens the whole window the 55%/88% marks are computed from. Or just answer the checkpoint: at the soft mark you can decline in one line if this is genuinely focused work that needs the accumulated history, and it won't nag again until context grows another 15% of the window.
+A few options depending on what you actually want. Turn it off entirely: `touch ~/.claude/hooks/context-check.disabled`, instant, no restart. Turn off just the hard tier and keep the soft nudge (or vice versa): `CONTEXT_CHECK_DISABLE_HARD=1` / `CONTEXT_CHECK_DISABLE_WARN=1`, see [CUSTOMIZE.md](CUSTOMIZE.md). Push the thresholds higher instead of off: `CONTEXT_CHECK_WARN_PCT`/`HARD_PCT`, or widen the whole window with `CONTEXT_CHECK_WINDOW`. Or just answer the checkpoint: at the soft mark you can decline in one line if this is genuinely focused work that needs the accumulated history, and it won't nag again until context grows another 15% of the window.
 
 ### Why does it fire again right after I answered the hard-tier checkpoint?
 
@@ -22,11 +22,11 @@ Yes, one variable: `export CONTEXT_CHECK_WINDOW=1000000` (in your shell profile,
 
 ### Can the 55%/88% thresholds be changed?
 
-The window they're computed from, yes: `CONTEXT_CHECK_WINDOW` (default 200,000). The percentages themselves are in the script, `hooks/context-check.sh`, as the `WARN`/`HARD` calculations near the top. Edit them directly if 55/88 doesn't fit your usage.
+Yes, without touching the script: `CONTEXT_CHECK_WARN_PCT` and `CONTEXT_CHECK_HARD_PCT`, either as env vars or in `~/.claude/hooks/context-check.conf`. The window they're computed from is `CONTEXT_CHECK_WINDOW` (default 200,000), and the re-nag cooldown is `CONTEXT_CHECK_STEP_PCT`. Either tier can also be turned off entirely with its own variable. Full list, examples, and how to confirm what's actually active: [CUSTOMIZE.md](CUSTOMIZE.md).
 
 ### Does any of this send my data anywhere?
 
-No. The hook is a local shell script that reads your own session transcript file on disk and writes a small state file under `~/.claude/hooks/state/`. Nothing here makes a network call. Read the script yourself before trusting that claim, it's short.
+No. The hook is a local shell script that reads your own session transcript file on disk, your own `~/.claude/hooks/context-check.conf` if you created one, and writes a small state file under `~/.claude/hooks/state/`. Nothing here makes a network call. Read the script yourself before trusting that claim, it's short.
 
 ### Can I run this alongside Bullpen?
 

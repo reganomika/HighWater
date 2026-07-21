@@ -6,17 +6,21 @@
 # the SEMANTIC half (task closed? old history disposable? is this the focused-
 # work exception?) stays the model's own call, made inside the AskUserQuestion
 # it raises.
-#   - warn tier (>= 55% of window): advisory nudge, enforced as TEXT only; the
-#     focused-work exception still applies and the model may decline in one line.
-#   - hard tier (>= 88% of window): "approaching ceiling"; the exception no longer
-#     applies. Unconditional AskUserQuestion imperative, and it re-fires every Stop
-#     until the transcript shows the checkpoint was actually raised.
+#   - warn tier (>= 55% of window, default): advisory nudge, enforced as TEXT
+#     only; the focused-work exception still applies and the model may decline
+#     in one line.
+#   - hard tier (>= 88% of window, default): "approaching ceiling"; the
+#     exception no longer applies. Unconditional AskUserQuestion imperative,
+#     and it re-fires every Stop until the transcript shows the checkpoint
+#     was actually raised.
 # Cooldown (warn only): after a warn fire, don't fire again until context grows a
 # further STEP tokens. Hard tier is NOT step-gated (see below), so a warn fire that
 # lands just under HARD can never strand the ceiling warning past auto-compaction.
 # Context shrink (auto-compaction / /clear) lowers the per-model floor so the next
 # real crossing fires cleanly.
 # Instant global off-switch: touch ~/.claude/hooks/context-check.disabled
+# Every threshold above (window, warn/hard/step %, and each tier individually)
+# is user-configurable via ~/.claude/hooks/context-check.conf; see CUSTOMIZE.md.
 #
 # If another hook also runs on Stop, keep state and reasons independent: this
 # hook's state file is its own, it honors stop_hook_active, and its reason text
@@ -38,22 +42,51 @@ fi
 # No jq: fail open rather than wedge every Stop.
 command -v jq >/dev/null 2>&1 || exit 0
 
-# Effective context window in tokens. Default is 200K, the window on a standard
-# account tier. The transcript's message.model field carries no window-size hint
-# (checked: "claude-opus-4-8" and "claude-sonnet-5" look identical whether the
-# account is on the 200K or the 1M-context tier), so this cannot be auto-detected
-# and must be set explicitly. If your account runs the 1M-context tier, export
-# CONTEXT_CHECK_WINDOW=1000000 (e.g. in ~/.claude/settings.json env, or your
-# shell profile) or every threshold below computes against the wrong ceiling and
-# silently never fires. A session mixing a 1M model with a 200K model is not
-# handled: one window applies to the whole session.
-WINDOW="${CONTEXT_CHECK_WINDOW:-200000}"
-WARN=$(( WINDOW * 55 / 100 ))   # "getting large" nudge, text-enforced (550k @ 1M)
-HARD=$(( WINDOW * 88 / 100 ))   # "approaching ceiling", before the ~99% force-compact (880k @ 1M)
-STEP=$(( WINDOW * 15 / 100 ))   # warn-tier re-nag only after this much further growth
-                                # (150k @ 1M). Derived from the window, not flat, so a
-                                # 200k override keeps STEP < WARN and the band stays usable;
-                                # a flat 150k would exceed the whole 200k warn->hard band.
+# User customization. A real exported env var always wins (so a one-off
+# `CONTEXT_CHECK_WINDOW=... claude` or a CI override never gets clobbered by
+# the file); otherwise ~/.claude/hooks/context-check.conf is sourced if it
+# exists. Every variable here, its default, and what it does is documented
+# in CUSTOMIZE.md; context-check.conf.example is a copy-and-edit template.
+_ENV_WINDOW="${CONTEXT_CHECK_WINDOW-}"
+_ENV_WARN_PCT="${CONTEXT_CHECK_WARN_PCT-}"
+_ENV_HARD_PCT="${CONTEXT_CHECK_HARD_PCT-}"
+_ENV_STEP_PCT="${CONTEXT_CHECK_STEP_PCT-}"
+_ENV_DISABLE_WARN="${CONTEXT_CHECK_DISABLE_WARN-}"
+_ENV_DISABLE_HARD="${CONTEXT_CHECK_DISABLE_HARD-}"
+
+CONFIG_FILE="$HOME/.claude/hooks/context-check.conf"
+if [ -f "$CONFIG_FILE" ]; then
+  # shellcheck disable=SC1090  # user's own file, path is fixed, not attacker input
+  . "$CONFIG_FILE"
+fi
+
+CONTEXT_CHECK_WINDOW="${_ENV_WINDOW:-${CONTEXT_CHECK_WINDOW:-200000}}"
+CONTEXT_CHECK_WARN_PCT="${_ENV_WARN_PCT:-${CONTEXT_CHECK_WARN_PCT:-55}}"
+CONTEXT_CHECK_HARD_PCT="${_ENV_HARD_PCT:-${CONTEXT_CHECK_HARD_PCT:-88}}"
+CONTEXT_CHECK_STEP_PCT="${_ENV_STEP_PCT:-${CONTEXT_CHECK_STEP_PCT:-15}}"
+DISABLE_WARN="${_ENV_DISABLE_WARN:-${CONTEXT_CHECK_DISABLE_WARN-}}"
+DISABLE_HARD="${_ENV_DISABLE_HARD:-${CONTEXT_CHECK_DISABLE_HARD-}}"
+
+# Malformed numbers fail open to the shipped defaults rather than wedging
+# every Stop on a typo in the config file.
+case "$CONTEXT_CHECK_WINDOW" in ''|*[!0-9]*) CONTEXT_CHECK_WINDOW=200000 ;; esac
+case "$CONTEXT_CHECK_WARN_PCT" in ''|*[!0-9]*) CONTEXT_CHECK_WARN_PCT=55 ;; esac
+case "$CONTEXT_CHECK_HARD_PCT" in ''|*[!0-9]*) CONTEXT_CHECK_HARD_PCT=88 ;; esac
+case "$CONTEXT_CHECK_STEP_PCT" in ''|*[!0-9]*) CONTEXT_CHECK_STEP_PCT=15 ;; esac
+if [ "$CONTEXT_CHECK_WARN_PCT" -lt 1 ] || [ "$CONTEXT_CHECK_HARD_PCT" -gt 100 ] \
+   || [ "$CONTEXT_CHECK_WARN_PCT" -ge "$CONTEXT_CHECK_HARD_PCT" ]; then
+  printf 'context-check.sh: CONTEXT_CHECK_WARN_PCT/HARD_PCT (%s/%s) must satisfy 1 <= warn < hard <= 100; falling back to 55/88\n' \
+    "$CONTEXT_CHECK_WARN_PCT" "$CONTEXT_CHECK_HARD_PCT" >&2
+  CONTEXT_CHECK_WARN_PCT=55
+  CONTEXT_CHECK_HARD_PCT=88
+fi
+
+WINDOW="$CONTEXT_CHECK_WINDOW"
+WARN=$(( WINDOW * CONTEXT_CHECK_WARN_PCT / 100 ))   # "getting large" nudge, text-enforced
+HARD=$(( WINDOW * CONTEXT_CHECK_HARD_PCT / 100 ))   # "approaching ceiling", before the ~99% force-compact
+STEP=$(( WINDOW * CONTEXT_CHECK_STEP_PCT / 100 ))   # re-nag cadence, both tiers. Derived from the
+                                                     # window, not flat, so a smaller window keeps
+                                                     # STEP inside the warn->hard band.
 
 STOP_HOOK_ACTIVE="$(printf '%s' "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null)"
 TRANSCRIPT="$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null)"
@@ -192,6 +225,9 @@ PCT=$(( SIZE * 100 / WINDOW ))
 
 if [ "$SIZE" -lt "$HARD" ]; then
   # ---- WARN tier: advisory, text-enforced, step-gated cadence ----
+  if [ -n "$DISABLE_WARN" ]; then
+    exit 0
+  fi
   if [ "$SIZE" -lt $(( FORCED_AT + STEP )) ]; then
     exit 0
   fi
@@ -203,6 +239,14 @@ fi
 
 # ---- HARD tier: >= HARD, not step-gated, re-fires until the checkpoint is
 # actually raised (verified in the transcript), then respects the answer ----
+
+# CONTEXT_CHECK_DISABLE_HARD trades away the tool's actual safety net (no
+# more forced stop before auto-compaction), leaving only the warn nudge if
+# that's still enabled. Deliberate opt-out, documented in CUSTOMIZE.md, not
+# a bug.
+if [ -n "$DISABLE_HARD" ]; then
+  exit 0
+fi
 
 # Was a checkpoint actually raised since the last hard fire? (AskUserQuestion
 # tool_use with a timestamp after this track's fire.) If so, ack and go quiet:

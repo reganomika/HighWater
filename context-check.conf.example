@@ -1,0 +1,34 @@
+# HighWater config template. Copy to ~/.claude/hooks/context-check.conf and
+# uncomment what you want to change; context-check.sh sources this file if
+# it exists. Everything below is commented out at its shipped default, so
+# an empty copy of this file changes nothing. Full explanation of each
+# variable: CUSTOMIZE.md in this repo.
+#
+# A real exported env var (shell profile, or the `env` block in
+# ~/.claude/settings.json) always overrides whatever is set here.
+
+# Context window in tokens, used to compute every percentage below.
+# Default 200000 (the standard account tier). Set to 1000000 if your
+# account runs the 1M-context tier.
+# CONTEXT_CHECK_WINDOW=200000
+
+# Soft mark: advisory nudge, enforced as text only. Percent of the window.
+# CONTEXT_CHECK_WARN_PCT=55
+
+# Hard mark: forces an AskUserQuestion checkpoint before the harness
+# force-compacts near ~99%. Percent of the window. Must be greater than
+# CONTEXT_CHECK_WARN_PCT.
+# CONTEXT_CHECK_HARD_PCT=88
+
+# Re-nag cooldown after a fire (both tiers), percent of the window.
+# CONTEXT_CHECK_STEP_PCT=15
+
+# Set to 1 to silence the warn tier entirely. The hard tier (the actual
+# safety net before auto-compaction) still fires.
+# CONTEXT_CHECK_DISABLE_WARN=1
+
+# Set to 1 to silence the hard tier entirely. This removes the tool's
+# actual safety net, no forced stop before auto-compaction, leaving only
+# the warn nudge if that's still enabled. See CUSTOMIZE.md before setting
+# this.
+# CONTEXT_CHECK_DISABLE_HARD=1

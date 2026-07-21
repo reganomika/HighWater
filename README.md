@@ -13,13 +13,14 @@ Context-boundary hygiene for [Claude Code](https://claude.com/claude-code). A `S
 
 ## Why
 
-Claude Code doesn't warn you before a session's context balloons past the point where quality degrades, or force-compacts near ~99% of the window without asking. HighWater reads real usage straight from the transcript, tracked per model, and hands the choice back to you at 55% and 88%, before the harness makes it for you.
+Claude Code doesn't warn you before a session's context balloons past the point where quality degrades, or force-compacts near ~99% of the window without asking. HighWater reads real usage straight from the transcript, tracked per model, and hands the choice back to you at 55% and 88% by default, before the harness makes it for you. Every number here is yours to change, see [CUSTOMIZE.md](CUSTOMIZE.md).
 
 ## What's in here
 
 - **`hooks/context-check.sh`**: a `Stop` hook that reads real context size from the transcript and, past a threshold, blocks the response until Claude raises the checkpoint
 - **`CLAUDE.md.example`**: the rule that wires the checkpoint behavior (what it offers, how it phrases the question) into Claude's own behavior
 - **`/refresh-context-rules`**: on-demand command, see [COMMANDS.md](COMMANDS.md)
+- **`context-check.conf.example`**: every threshold and toggle, commented at its default, see [CUSTOMIZE.md](CUSTOMIZE.md)
 - **`tests/`**: a bats suite covering the hook's state machine and checking the docs' quoted percentages against the script (`bats tests/`)
 
 Looking for cost-aware model routing (which subagent tier handles a task) instead of context hygiene? That's a separate tool, [Bullpen](https://github.com/reganomika/Bullpen), safe to install alongside this one.
@@ -37,6 +38,7 @@ On a 1M-context account, set `export CONTEXT_CHECK_WINDOW=1000000` first, the ho
 
 - [COMMANDS.md](COMMANDS.md): the one slash command, with a real output example
 - [INSTALL.md](INSTALL.md): both install paths, restart caveats, uninstall
+- [CUSTOMIZE.md](CUSTOMIZE.md): every threshold and toggle, how to set them, how to verify what's active
 - [FAQ.md](FAQ.md): common questions and corner cases
 
 ## License

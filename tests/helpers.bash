@@ -15,7 +15,8 @@ setup_sandbox() {
   TRANSCRIPT="$SANDBOX/transcript.jsonl"
   : > "$TRANSCRIPT"
   SESSION_ID="test-session"
-  unset CONTEXT_CHECK_WINDOW
+  unset CONTEXT_CHECK_WINDOW CONTEXT_CHECK_WARN_PCT CONTEXT_CHECK_HARD_PCT \
+        CONTEXT_CHECK_STEP_PCT CONTEXT_CHECK_DISABLE_WARN CONTEXT_CHECK_DISABLE_HARD
 }
 
 teardown_sandbox() {
@@ -59,6 +60,12 @@ invoke_hook() {
   "$JQ_BIN" -nc --arg tp "$TRANSCRIPT" --arg sid "$SESSION_ID" --argjson active "$active" \
     '{transcript_path:$tp, session_id:$sid, stop_hook_active:$active}' \
     | bash "$SCRIPT"
+}
+
+# write_config <lines...> — writes ~/.claude/hooks/context-check.conf,
+# one KEY=VALUE per argument.
+write_config() {
+  printf '%s\n' "$@" > "$HOME/.claude/hooks/context-check.conf"
 }
 
 state_field() {

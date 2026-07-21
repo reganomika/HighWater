@@ -17,11 +17,12 @@ DOCS=(
   "$REPO_ROOT/skills/refresh-context-rules/SKILL.md"
 )
 
-# extract_pct <VARNAME> — pulls the literal percent out of e.g.
-# `WARN=$(( WINDOW * 55 / 100 ))`, so this test tracks the script instead
-# of hardcoding its own copy of 55/88/15.
+# extract_pct <WARN|HARD|STEP> — pulls the shipped default straight out of
+# the script's own fallback expression, e.g. `${CONTEXT_CHECK_WARN_PCT:-55}`
+# yields 55, so this test tracks the script instead of hardcoding its own
+# copy of 55/88/15.
 extract_pct() {
-  awk -v var="$1" '$0 ~ "^"var"=" { for (i=1;i<=NF;i++) if ($i=="*") { print $(i+1); exit } }' "$SCRIPT"
+  grep -oE "CONTEXT_CHECK_${1}_PCT:-[0-9]+" "$SCRIPT" | head -1 | grep -oE '[0-9]+$'
 }
 
 # any_doc_contains <needle> — true if at least one doc file quotes this
