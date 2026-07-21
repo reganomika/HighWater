@@ -18,7 +18,9 @@ It shouldn't, if the answer was a real `AskUserQuestion` call. The hook checks t
 
 ### My account has a 1M context window. Do I need to configure anything?
 
-Yes, one variable: `export CONTEXT_CHECK_WINDOW=1000000` (in your shell profile, or the `env` block of `~/.claude/settings.json`). The default is 200,000, the standard account tier, and the transcript carries no field that says which tier you're on, so the hook can't detect this on its own. Skip this on a 1M account and the thresholds stay at 110k/176k, a fifth of your real ceiling, so the hook does the opposite of going quiet: it starts hard-firing once you're a normal fraction of the way into a long session and keeps re-firing on every Stop for however much further context you accumulate, since real auto-compaction is still hundreds of thousands of tokens away.
+Depends on the model. Sonnet 5 and Fable 5 always run with a 1M window, on any plan, no opt-in needed, so the hook detects this from the model name in the transcript and defaults to 1,000,000 automatically. Nothing to set.
+
+Opus and everything else varies by plan and usage credits (Claude Code's own docs: Opus gets 1M included on Max/Team/Enterprise, but needs usage credits on Pro), which isn't something the transcript reveals, so those still default to 200,000. If you're running Opus with 1M enabled, set `export CONTEXT_CHECK_WINDOW=1000000` yourself (shell profile, or the `env` block of `~/.claude/settings.json`). Skip this when you need it and the thresholds stay at 110k/176k, a fifth of the real ceiling, so the hook does the opposite of going quiet: it starts hard-firing once you're a normal fraction of the way into a long session and keeps re-firing on every Stop for however much further context you accumulate, since real auto-compaction is still hundreds of thousands of tokens away. Self-calibration (see below) corrects this on its own after the first real compaction, but a manual override fixes it immediately instead of waiting for that.
 
 ### Can the 55%/88% thresholds be changed?
 

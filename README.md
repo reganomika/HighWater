@@ -32,7 +32,7 @@ Looking for cost-aware model routing (which subagent tier handles a task) instea
 /plugin install highwater@highwater
 ```
 
-On a 1M-context account, set `export CONTEXT_CHECK_WINDOW=1000000` first, the hook defaults to the standard 200K window and can't detect your tier on its own. Full instructions, including the no-plugin-system path, what happens to chats you already have open, and how to disable or remove it: [INSTALL.md](INSTALL.md).
+Sonnet 5 and Fable 5 auto-detect their 1M window from the model name, nothing to configure. On Opus with 1M enabled, set `export CONTEXT_CHECK_WINDOW=1000000` first, the transcript can't reveal your plan so it still defaults to 200K there. Full instructions, including the no-plugin-system path, what happens to chats you already have open, and how to disable or remove it: [INSTALL.md](INSTALL.md).
 
 ## Docs
 

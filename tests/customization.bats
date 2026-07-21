@@ -13,6 +13,9 @@ teardown() { teardown_sandbox; }
 @test "a config file rescales the thresholds" {
   # WINDOW 100000, WARN_PCT 20 -> WARN=20000. Default WARN (55% of 200K =
   # 110000) would stay silent at this size; the custom config must not.
+  # unset: the sandbox's default WINDOW=200000 is itself an env var, which
+  # would otherwise outrank the config file being tested here.
+  unset CONTEXT_CHECK_WINDOW
   write_config "CONTEXT_CHECK_WINDOW=100000" "CONTEXT_CHECK_WARN_PCT=20" "CONTEXT_CHECK_HARD_PCT=40"
   assistant_row 25000 claude-sonnet-5 "2026-01-01T00:00:01Z"
   run invoke_hook

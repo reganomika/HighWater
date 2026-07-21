@@ -218,13 +218,43 @@ teardown() { teardown_sandbox; }
   [ -z "$output" ]
 }
 
-@test "CONTEXT_CHECK_WINDOW overrides the default and rescales thresholds" {
+@test "CONTEXT_CHECK_WINDOW overrides the model-based default and rescales thresholds" {
   export CONTEXT_CHECK_WINDOW=1000000
-  # 120000 is warn-tier at the 200K default but well under 55% of 1M.
-  assistant_row 120000 claude-sonnet-5 "2026-01-01T00:00:01Z"
+  # claude-opus-4-8 would otherwise auto-default to 200K (see below); the
+  # explicit override must win regardless. 120000 is warn-tier at 200K but
+  # well under 55% of 1M.
+  assistant_row 120000 claude-opus-4-8 "2026-01-01T00:00:01Z"
   run invoke_hook
   [ "$status" -eq 0 ]
   [ -z "$output" ]
+}
+
+@test "claude-sonnet-5 auto-defaults to the 1M window when nothing is configured" {
+  unset CONTEXT_CHECK_WINDOW
+  # 300000 would already be well past the hard mark at a 200K window
+  # (176000); silence here proves 1M was actually selected, not 200K.
+  assistant_row 300000 claude-sonnet-5 "2026-01-01T00:00:01Z"
+  run invoke_hook
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "claude-fable-5 auto-defaults to the 1M window when nothing is configured" {
+  unset CONTEXT_CHECK_WINDOW
+  assistant_row 300000 claude-fable-5 "2026-01-01T00:00:01Z"
+  run invoke_hook
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "an unrecognized model falls back to the 200K default when nothing is configured" {
+  unset CONTEXT_CHECK_WINDOW
+  # 120000 is warn-tier at 200K (110000-176000); silence would mean it was
+  # wrongly treated as a 1M window instead.
+  assistant_row 120000 claude-opus-4-8 "2026-01-01T00:00:01Z"
+  run invoke_hook
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"advisory nudge"* ]]
 }
 
 @test "state files older than 30 days are pruned, everything else survives" {

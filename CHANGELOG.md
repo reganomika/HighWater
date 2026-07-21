@@ -2,6 +2,15 @@
 
 Notable changes to this project. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-07-22
+
+Found by installing the plugin and actually using it: the hard mark fired on the very first message of a new session (453552 tokens, 226% of the assumed 200K window) on an account running Sonnet 5, which the previous default had no way to know always runs at 1M.
+
+### Added
+
+- Model-based window auto-detection. When `CONTEXT_CHECK_WINDOW` isn't set anywhere (config file or env), the hook now reads the model from the transcript it already parses and picks the window itself: `1000000` for `claude-sonnet-5` and `claude-fable-5` (per Claude Code's own docs, these always run at 1M, on any plan, no opt-in), `200000` for everything else, since Opus and older models vary by plan in ways the transcript can't reveal. An explicit `CONTEXT_CHECK_WINDOW`, from either source, always wins over auto-detection.
+- 4 new tests covering auto-detection for both 1M models, the 200K fallback for an unrecognized model, and that an explicit override still beats the model-based default.
+
 ## [0.2.0] - 2026-07-22
 
 ### Added

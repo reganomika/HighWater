@@ -19,7 +19,7 @@ A real exported env var (your shell profile, or the `env` block in `~/.claude/se
 
 | Variable | Default | Effect |
 |---|---|---|
-| `CONTEXT_CHECK_WINDOW` | `200000` | Context window in tokens, the base every percentage below is computed from. `1000000` for the 1M-context account tier. |
+| `CONTEXT_CHECK_WINDOW` | `200000`, or `1000000` when the transcript's model is `claude-sonnet-5`/`claude-fable-5` | Context window in tokens, the base every percentage below is computed from. Auto-detected from the model for Sonnet 5 and Fable 5 (they always run at 1M, no plan check needed); set explicitly to `1000000` yourself for Opus with the 1M tier enabled, since plan/usage-credit status isn't visible from the transcript. |
 | `CONTEXT_CHECK_WARN_PCT` | `55` | Soft mark, percent of the window. Advisory nudge, enforced as text only. |
 | `CONTEXT_CHECK_HARD_PCT` | `88` | Hard mark, percent of the window. Forces an `AskUserQuestion` checkpoint before the harness force-compacts. Real auto-compaction has landed anywhere from ~93% to ~101% of the window across observed sessions, not a fixed point, which is why this self-calibrates, see below. Must be greater than `CONTEXT_CHECK_WARN_PCT`. |
 | `CONTEXT_CHECK_STEP_PCT` | `15` | Re-nag cooldown after a fire, percent of the window. Applies to both tiers (warn's own cadence, and the hard tier's post-ack cooldown). |

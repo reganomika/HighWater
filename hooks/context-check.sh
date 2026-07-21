@@ -60,7 +60,14 @@ if [ -f "$CONFIG_FILE" ]; then
   . "$CONFIG_FILE"
 fi
 
-CONTEXT_CHECK_WINDOW="${_ENV_WINDOW:-${CONTEXT_CHECK_WINDOW:-200000}}"
+# CONTEXT_CHECK_WINDOW is deliberately left UNRESOLVED here if the user set
+# it nowhere (no env var, no config file): auto-detecting a model-appropriate
+# default needs the model, which isn't known until the transcript is parsed
+# below. An explicit value, from either source, is honored immediately and
+# skips auto-detection entirely.
+CONTEXT_CHECK_WINDOW="${_ENV_WINDOW:-${CONTEXT_CHECK_WINDOW-}}"
+case "$CONTEXT_CHECK_WINDOW" in *[!0-9]*) CONTEXT_CHECK_WINDOW="" ;; esac
+
 CONTEXT_CHECK_WARN_PCT="${_ENV_WARN_PCT:-${CONTEXT_CHECK_WARN_PCT:-55}}"
 CONTEXT_CHECK_HARD_PCT="${_ENV_HARD_PCT:-${CONTEXT_CHECK_HARD_PCT:-88}}"
 CONTEXT_CHECK_STEP_PCT="${_ENV_STEP_PCT:-${CONTEXT_CHECK_STEP_PCT:-15}}"
@@ -69,7 +76,6 @@ DISABLE_HARD="${_ENV_DISABLE_HARD:-${CONTEXT_CHECK_DISABLE_HARD-}}"
 
 # Malformed numbers fail open to the shipped defaults rather than wedging
 # every Stop on a typo in the config file.
-case "$CONTEXT_CHECK_WINDOW" in ''|*[!0-9]*) CONTEXT_CHECK_WINDOW=200000 ;; esac
 case "$CONTEXT_CHECK_WARN_PCT" in ''|*[!0-9]*) CONTEXT_CHECK_WARN_PCT=55 ;; esac
 case "$CONTEXT_CHECK_HARD_PCT" in ''|*[!0-9]*) CONTEXT_CHECK_HARD_PCT=88 ;; esac
 case "$CONTEXT_CHECK_STEP_PCT" in ''|*[!0-9]*) CONTEXT_CHECK_STEP_PCT=15 ;; esac
@@ -80,16 +86,8 @@ if [ "$CONTEXT_CHECK_WARN_PCT" -lt 1 ] || [ "$CONTEXT_CHECK_HARD_PCT" -gt 100 ] 
   CONTEXT_CHECK_WARN_PCT=55
   CONTEXT_CHECK_HARD_PCT=88
 fi
-
-WINDOW="$CONTEXT_CHECK_WINDOW"
-WARN=$(( WINDOW * CONTEXT_CHECK_WARN_PCT / 100 ))   # "getting large" nudge, text-enforced
-HARD=$(( WINDOW * CONTEXT_CHECK_HARD_PCT / 100 ))   # "approaching ceiling", before the harness force-compacts
-                                                     # (near ~99% of window in observed sessions, sometimes
-                                                     # earlier; calibrated downward below once a real
-                                                     # compaction is actually observed, see COMPACT_PRE below)
-STEP=$(( WINDOW * CONTEXT_CHECK_STEP_PCT / 100 ))   # re-nag cadence, both tiers. Derived from the
-                                                     # window, not flat, so a smaller window keeps
-                                                     # STEP inside the warn->hard band.
+# WINDOW/WARN/HARD/STEP themselves are computed further below, once the
+# transcript scan has resolved MODEL (needed for auto-detection).
 
 STOP_HOOK_ACTIVE="$(printf '%s' "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null)"
 TRANSCRIPT="$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null)"
@@ -170,6 +168,33 @@ case "$SIZE" in
   ''|*[!0-9]*) exit 0 ;;
 esac
 [ -z "$MODEL" ] && exit 0
+
+# Resolve the window now that MODEL is known. An explicit CONTEXT_CHECK_WINDOW
+# (env var or config file, checked earlier) always wins and skips detection
+# entirely. Otherwise: claude-sonnet-5 and claude-fable-5 always run with a
+# 1M context window on any plan, per Claude Code's own docs (no 200K variant
+# exists for them, no opt-in needed), so defaulting them to 200K would make
+# the hard tier fire almost immediately in every session, not near any real
+# ceiling. Everything else (Opus, Haiku, older models) varies by plan and
+# usage credits, so 200K stays the conservative fallback there; a wrong
+# guess in that direction fails toward firing early, not toward silently
+# never firing, and self-calibration below corrects it once a real
+# compaction is actually observed.
+if [ -z "$CONTEXT_CHECK_WINDOW" ]; then
+  case "$MODEL" in
+    claude-sonnet-5|claude-fable-5) CONTEXT_CHECK_WINDOW=1000000 ;;
+    *) CONTEXT_CHECK_WINDOW=200000 ;;
+  esac
+fi
+WINDOW="$CONTEXT_CHECK_WINDOW"
+WARN=$(( WINDOW * CONTEXT_CHECK_WARN_PCT / 100 ))   # "getting large" nudge, text-enforced
+HARD=$(( WINDOW * CONTEXT_CHECK_HARD_PCT / 100 ))   # "approaching ceiling", before the harness force-compacts
+                                                     # (near ~99% of window in observed sessions, sometimes
+                                                     # earlier; calibrated downward below once a real
+                                                     # compaction is actually observed, see COMPACT_PRE below)
+STEP=$(( WINDOW * CONTEXT_CHECK_STEP_PCT / 100 ))   # re-nag cadence, both tiers. Derived from the
+                                                     # window, not flat, so a smaller window keeps
+                                                     # STEP inside the warn->hard band.
 
 # Calibrate the hard mark from a REAL observed auto-compaction instead of
 # only trusting an assumed percentage. If this scan caught a compact_boundary

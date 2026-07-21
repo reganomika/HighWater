@@ -15,8 +15,13 @@ setup_sandbox() {
   TRANSCRIPT="$SANDBOX/transcript.jsonl"
   : > "$TRANSCRIPT"
   SESSION_ID="test-session"
-  unset CONTEXT_CHECK_WINDOW CONTEXT_CHECK_WARN_PCT CONTEXT_CHECK_HARD_PCT \
+  unset CONTEXT_CHECK_WARN_PCT CONTEXT_CHECK_HARD_PCT \
         CONTEXT_CHECK_STEP_PCT CONTEXT_CHECK_DISABLE_WARN CONTEXT_CHECK_DISABLE_HARD
+  # Explicit by default so per-model window auto-detection (tested on its
+  # own in context-check.bats) doesn't shift every other test's numbers;
+  # tests/context-check.bats's "CONTEXT_CHECK_WINDOW overrides..." and the
+  # auto-detection tests override this within their own body.
+  export CONTEXT_CHECK_WINDOW=200000
 }
 
 teardown_sandbox() {

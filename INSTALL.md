@@ -2,7 +2,7 @@
 
 **Any chat window already open before you install will not get the new hook, full stop: not after `/reload-plugins`, not ever, until you close it and start a new one.** Claude Code loads hook registrations once when a session starts; there's no live reload for that. New chats opened after install work immediately. See [FAQ.md](FAQ.md) for more on this.
 
-**On a 1M-context account, set one variable before you rely on this.** The hook defaults to a 200K window, the standard tier, because the transcript carries no field saying which tier you're actually on. If your account runs the 1M-context tier and you skip this, the thresholds compute against the wrong ceiling and the hook stays quiet for most of a real session:
+**On Opus with a 1M-context account, set one variable before you rely on this.** Sonnet 5 and Fable 5 always run with a 1M window on any plan, so the hook detects that from the model name and defaults to it automatically, nothing to do. Opus varies by plan (1M is included on Max/Team/Enterprise, needs usage credits on Pro), which the transcript can't reveal, so it still defaults to 200K. If that's wrong for your account, the thresholds compute against the wrong ceiling and the hook fires early and often instead of near any real ceiling:
 
 ```bash
 export CONTEXT_CHECK_WINDOW=1000000
