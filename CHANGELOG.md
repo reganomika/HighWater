@@ -2,6 +2,17 @@
 
 Notable changes to this project. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] - 2026-07-21
+
+Fixes from an independent review of the state machine and docs.
+
+### Fixed
+
+- FAQ's 1M-account answer was backwards: skipping `CONTEXT_CHECK_WINDOW=1000000` doesn't make the hook "go quiet", it makes it hard-fire early and keep re-firing, since the thresholds stay at a fifth of the real ceiling.
+- `emit_block` printed a `{decision:"block", reason}` JSON payload to stdout that was never actually read, Claude Code only processes JSON on exit 0 and ignores stdout on exit 2. Removed; the stderr line was always the real channel.
+- `CLAUDE.md.example` claimed the hook is "registered in `~/.claude/settings.json`" unconditionally; that's only true for the manual-install path, a plugin install registers it via `hooks/hooks.json`.
+- `~/.claude/hooks/state/` accumulated one file per session forever. Now pruned past 30 days untouched, on every run, scoped to this hook's own filename suffix.
+
 ## [0.1.1] - 2026-07-21
 
 ### Added
