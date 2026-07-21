@@ -42,7 +42,7 @@ teardown() { teardown_sandbox; }
   assistant_row 120000 claude-sonnet-5 "2026-01-01T00:00:01Z"
   run invoke_hook
   [ "$status" -eq 2 ]
-  [[ "$output" == *'"decision":"block"'* ]]
+  [ "$(echo "$output" | jq -r '.decision')" = "block" ]
   [[ "$output" == *"advisory nudge"* ]]
 }
 
