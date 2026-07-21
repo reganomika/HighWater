@@ -1,0 +1,11 @@
+{
+  "name": "highwater",
+  "description": "Context-boundary hygiene for Claude Code: a hook that watches context size and forces a task-boundary checkpoint (new chat, clear, or continue) before the window quietly burns your budget or hits auto-compaction.",
+  "author": {
+    "name": "reganomika",
+    "url": "https://github.com/reganomika"
+  },
+  "homepage": "https://github.com/reganomika/HighWater",
+  "repository": "https://github.com/reganomika/HighWater",
+  "license": "MIT"
+}

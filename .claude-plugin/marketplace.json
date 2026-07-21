@@ -1,0 +1,14 @@
+{
+  "name": "highwater",
+  "description": "Context-boundary hygiene for Claude Code, self-hosted from this one repo.",
+  "owner": {
+    "name": "reganomika"
+  },
+  "plugins": [
+    {
+      "name": "highwater",
+      "source": "./",
+      "description": "Context-boundary hygiene for Claude Code"
+    }
+  ]
+}
