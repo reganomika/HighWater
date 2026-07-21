@@ -157,6 +157,14 @@ esac
 
 STATE_DIR="$HOME/.claude/hooks/state"
 mkdir -p "$STATE_DIR" 2>/dev/null
+
+# One file per session, forever, with nothing else ever removing them.
+# Prune this hook's own files (only the *.context.json suffix, never
+# touching whatever other hooks keep in the same directory) once they've
+# been untouched for a month; a session that old is not coming back to
+# use its cooldown state anyway.
+find "$STATE_DIR" -maxdepth 1 -name '*.context.json' -mtime +30 -delete 2>/dev/null
+
 STATE_FILE="$STATE_DIR/${SESSION_ID}.context.json"
 
 STATE='{}'

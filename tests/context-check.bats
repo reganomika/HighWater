@@ -227,6 +227,21 @@ teardown() { teardown_sandbox; }
   [ -z "$output" ]
 }
 
+@test "state files older than 30 days are pruned, everything else survives" {
+  local state_dir="$HOME/.claude/hooks/state"
+  mkdir -p "$state_dir"
+  touch -t 202001010000 "$state_dir/stale-session.context.json"
+  touch "$state_dir/fresh-session.context.json"
+  touch -t 202001010000 "$state_dir/unrelated-tool-state.json"
+
+  assistant_row 50000 claude-sonnet-5 "2026-01-01T00:00:01Z"
+  run invoke_hook
+
+  [ ! -f "$state_dir/stale-session.context.json" ]
+  [ -f "$state_dir/fresh-session.context.json" ]
+  [ -f "$state_dir/unrelated-tool-state.json" ]
+}
+
 @test "a missing jq fails open before touching the transcript" {
   local hidden="$SANDBOX/bin"
   mkdir -p "$hidden"
