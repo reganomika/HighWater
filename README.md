@@ -2,7 +2,17 @@
   <img src="assets/logo.svg" alt="HighWater" width="460">
 </p>
 
-Context-boundary hygiene for Claude Code. A hook that watches your context size and forces a task-boundary checkpoint, new chat, clear, or continue, before the window quietly burns your budget or hits auto-compaction.
+<p align="center">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <a href="https://github.com/reganomika/HighWater/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/reganomika/HighWater?style=flat"></a>
+  <img alt="Claude Code plugin" src="https://img.shields.io/badge/Claude%20Code-plugin-8A63D2">
+</p>
+
+Context-boundary hygiene for [Claude Code](https://claude.com/claude-code). A `Stop` hook that watches your context size and forces a task-boundary checkpoint, new chat, clear, or continue, before the window quietly burns your token budget or hits auto-compaction.
+
+## Why
+
+Claude Code doesn't warn you before a session's context balloons past the point where quality degrades, or force-compacts near ~99% of the window without asking. HighWater reads real usage straight from the transcript, tracked per model, and hands the choice back to you at 55% and 88%, before the harness makes it for you.
 
 ## What's in here
 
