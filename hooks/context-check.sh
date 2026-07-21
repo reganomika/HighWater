@@ -202,7 +202,9 @@ save_track() { # forced_at tier fired_ts hard_ack hard_ack_at
 }
 
 emit_block() { # reason
-  jq -n --arg reason "$1" '{decision:"block", reason:$reason}'
+  # Exit 2 is what actually blocks the Stop; Claude Code only parses JSON on
+  # exit 0 and ignores stdout entirely on exit 2, so stderr is the one real
+  # channel here, not a JSON decision:block payload alongside it.
   printf '%s\n' "$1" >&2
 }
 

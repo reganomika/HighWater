@@ -39,10 +39,11 @@ teardown() { teardown_sandbox; }
 }
 
 @test "warn tier blocks once and names the advisory tone" {
+  # Exit 2 is the actual block; Claude Code ignores stdout/JSON on exit 2
+  # and only reads stderr, so that's what's asserted here, not a JSON payload.
   assistant_row 120000 claude-sonnet-5 "2026-01-01T00:00:01Z"
   run invoke_hook
   [ "$status" -eq 2 ]
-  [ "$(echo "$output" | jq -r '.decision')" = "block" ]
   [[ "$output" == *"advisory nudge"* ]]
 }
 
