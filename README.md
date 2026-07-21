@@ -41,6 +41,7 @@ On a 1M-context account, set `export CONTEXT_CHECK_WINDOW=1000000` first, the ho
 - [CUSTOMIZE.md](CUSTOMIZE.md): every threshold and toggle, how to set them, how to verify what's active
 - [FAQ.md](FAQ.md): common questions and corner cases
 - [CHANGELOG.md](CHANGELOG.md): notable changes, versioned per [plugin.json](.claude-plugin/plugin.json)
+- [CONTRIBUTING.md](CONTRIBUTING.md): running the tests, what a PR needs, versioning
 
 ## License
 
