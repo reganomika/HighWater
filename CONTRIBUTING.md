@@ -8,7 +8,7 @@ shellcheck hooks/context-check.sh
 bats tests/
 ```
 
-Both run in CI on every push and PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). A PR that doesn't pass both won't merge.
+Both run in CI on every push and PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)), the test suite on both Ubuntu and macOS since `context-check.sh` leans on plain POSIX tools that behave slightly differently between GNU and BSD coreutils. A PR that doesn't pass both won't merge.
 
 ## Changing `hooks/context-check.sh`
 

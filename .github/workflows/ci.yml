@@ -14,10 +14,18 @@ jobs:
         run: shellcheck hooks/context-check.sh
 
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Install bats
+      - name: Install bats (Linux)
+        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y bats
+      - name: Install bats (macOS)
+        if: runner.os == 'macOS'
+        run: brew install bats-core
       - name: Run the state-machine and docs-consistency suite
         run: bats tests/
