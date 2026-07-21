@@ -2,6 +2,14 @@
 
 **Any chat window already open before you install will not get the new hook, full stop: not after `/reload-plugins`, not ever, until you close it and start a new one.** Claude Code loads hook registrations once when a session starts; there's no live reload for that. New chats opened after install work immediately. See [FAQ.md](FAQ.md) for more on this.
 
+**On a 1M-context account, set one variable before you rely on this.** The hook defaults to a 200K window, the standard tier, because the transcript carries no field saying which tier you're actually on. If your account runs the 1M-context tier and you skip this, the thresholds compute against the wrong ceiling and the hook stays quiet for most of a real session:
+
+```bash
+export CONTEXT_CHECK_WINDOW=1000000
+```
+
+Put it in your shell profile, or in the `env` block of `~/.claude/settings.json` so it applies regardless of shell.
+
 ## As a plugin (recommended)
 
 ```

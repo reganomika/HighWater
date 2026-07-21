@@ -38,14 +38,16 @@ fi
 # No jq: fail open rather than wedge every Stop.
 command -v jq >/dev/null 2>&1 || exit 0
 
-# Effective context window in tokens. This environment runs 1M-window models
-# (claude-opus-4-8[1m], claude-sonnet-5, claude-fable-5 all auto-compact near
-# ~995K). On a plain 200K-window model, export CONTEXT_CHECK_WINDOW=200000 so the
-# percentage thresholds track that window instead of silently never firing. One
-# window is correct for every model in this environment (all sampled sessions ran
-# 1M); a session mixing a 1M model with a 200K model is not something the data
-# shows and is a documented limitation, not handled here.
-WINDOW="${CONTEXT_CHECK_WINDOW:-1000000}"
+# Effective context window in tokens. Default is 200K, the window on a standard
+# account tier. The transcript's message.model field carries no window-size hint
+# (checked: "claude-opus-4-8" and "claude-sonnet-5" look identical whether the
+# account is on the 200K or the 1M-context tier), so this cannot be auto-detected
+# and must be set explicitly. If your account runs the 1M-context tier, export
+# CONTEXT_CHECK_WINDOW=1000000 (e.g. in ~/.claude/settings.json env, or your
+# shell profile) or every threshold below computes against the wrong ceiling and
+# silently never fires. A session mixing a 1M model with a 200K model is not
+# handled: one window applies to the whole session.
+WINDOW="${CONTEXT_CHECK_WINDOW:-200000}"
 WARN=$(( WINDOW * 55 / 100 ))   # "getting large" nudge, text-enforced (550k @ 1M)
 HARD=$(( WINDOW * 88 / 100 ))   # "approaching ceiling", before the ~99% force-compact (880k @ 1M)
 STEP=$(( WINDOW * 15 / 100 ))   # warn-tier re-nag only after this much further growth
@@ -79,6 +81,7 @@ fi
 # hard-tier checkpoint was actually raised). Read the tail first (bounded cost on
 # the large transcripts this hook protects) and fall back to a full scan only if
 # the tail holds no usage row.
+# shellcheck disable=SC2016  # single quotes are deliberate: this is jq source, $vars are jq's, not the shell's
 METRIC_JQ='
   [ inputs
     | select(.type=="assistant")

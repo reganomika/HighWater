@@ -16,9 +16,13 @@ Three options depending on what you actually want. Turn it off entirely: `touch 
 
 It shouldn't, if the answer was a real `AskUserQuestion` call. The hook checks the transcript for one after its own fire and goes quiet once it finds it, then stays quiet until context grows another 15% of the window. If it keeps firing, the checkpoint wasn't actually raised as a tool call, a text-only answer doesn't count at the hard tier, on purpose, see [README.md](README.md) on why prose-only compliance isn't trusted here.
 
+### My account has a 1M context window. Do I need to configure anything?
+
+Yes, one variable: `export CONTEXT_CHECK_WINDOW=1000000` (in your shell profile, or the `env` block of `~/.claude/settings.json`). The default is 200,000, the standard account tier, and the transcript carries no field that says which tier you're on, so the hook can't detect this on its own. Skip this on a 1M account and the thresholds compute against the wrong ceiling (550k/880k instead of 110k/176k), so the hook goes quiet for most of a real session and only fires once you're already deep into 1M-token territory.
+
 ### Can the 55%/88% thresholds be changed?
 
-The window they're computed from, yes: `CONTEXT_CHECK_WINDOW` (default 1,000,000). The percentages themselves are in the script, `hooks/context-check.sh`, as the `WARN`/`HARD` calculations near the top. Edit them directly if 55/88 doesn't fit your usage.
+The window they're computed from, yes: `CONTEXT_CHECK_WINDOW` (default 200,000). The percentages themselves are in the script, `hooks/context-check.sh`, as the `WARN`/`HARD` calculations near the top. Edit them directly if 55/88 doesn't fit your usage.
 
 ### Does any of this send my data anywhere?
 
