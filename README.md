@@ -13,7 +13,7 @@ Context-boundary hygiene for [Claude Code](https://claude.com/claude-code). A `S
 
 ## Why
 
-Claude Code doesn't warn you before a session's context balloons past the point where quality degrades, or force-compacts near ~99% of the window without asking. HighWater reads real usage straight from the transcript, tracked per model, and hands the choice back to you at 55% and 88% by default, before the harness makes it for you. Every number here is yours to change, see [CUSTOMIZE.md](CUSTOMIZE.md).
+Claude Code doesn't warn you before a session's context balloons past the point where quality degrades, or force-compacts on its own without asking. HighWater reads real usage straight from the transcript, tracked per model, and hands the choice back to you at 55% and 88% by default, before the harness makes it for you, and it recalibrates that hard mark downward the first time it actually witnesses a real auto-compaction on your account. Every number here is yours to change, see [CUSTOMIZE.md](CUSTOMIZE.md).
 
 ## What's in here
 

@@ -53,6 +53,19 @@ sidechain_row() {
         content:[]}}' >> "$TRANSCRIPT"
 }
 
+# compact_boundary_row <preTokens> <timestamp> — appends a real
+# compact_boundary system event, the harness's own record of where an
+# actual auto-compaction fired.
+compact_boundary_row() {
+  "$JQ_BIN" -nc --argjson pre "$1" --arg ts "$2" \
+    '{type:"system", subtype:"compact_boundary", timestamp:$ts,
+      compactMetadata:{trigger:"auto", preTokens:$pre, postTokens:1000}}' >> "$TRANSCRIPT"
+}
+
+observed_file() {
+  echo "$HOME/.claude/hooks/context-check.observed.json"
+}
+
 # invoke_hook [stop_hook_active] — pipes the standard Stop payload to the
 # script and runs it under bats' `run`, so call this as `run invoke_hook`.
 invoke_hook() {

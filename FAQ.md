@@ -34,7 +34,15 @@ Yes. They're independent hooks on independent events (`context-check.sh` on `Sto
 
 ### Does this stop the harness from auto-compacting my context?
 
-No, and it isn't trying to. Claude Code force-compacts on its own near ~99% of the window regardless of this hook. `context-check.sh` fires earlier, at 55% and 88%, so you get an actual choice (handoff, clear, continue) before that happens automatically without asking you.
+No, and it isn't trying to. Claude Code force-compacts on its own regardless of this hook, empirically near ~99% of the window in most observed sessions but sometimes earlier. `context-check.sh` fires earlier, at 55% and 88% by default, so you get an actual choice (handoff, clear, continue) before that happens automatically without asking you.
+
+### How accurate is the 88% hard mark, really?
+
+It's an assumption that gets corrected by evidence. Real auto-compaction doesn't land at a fixed percentage (66 real compactions sampled across one account's history: median ~99.98% of window, but as early as ~93% in some sessions, only 4 of 66 below 88%), and the hook doesn't pretend otherwise: Claude Code writes a `compact_boundary` event to the transcript with the exact token count every time it actually compacts. The first time the hook sees one, it remembers that number (`~/.claude/hooks/context-check.observed.json`, account-wide, not per-session, read from disk every run so it survives past that event scrolling out of the transcript tail the hook scans) and uses `observed − 20000` as the hard mark whenever that's earlier than the configured percentage would fire, a fixed token margin rather than a percentage of the observed point, since the room actually needed to generate a checkpoint doesn't scale with window size. It only ever pulls the mark earlier, never later, and never below the soft mark. See [CUSTOMIZE.md](CUSTOMIZE.md#hard-mark-self-calibration).
+
+### Is the measured context size always exactly right?
+
+Close, not exact. Claude Code's own hooks reference notes that the transcript file is written asynchronously and isn't guaranteed to include the very latest message by the time a `Stop` hook fires. `context-check.sh` reads the transcript rather than the hook's `last_assistant_message` field because it needs the cumulative usage total, not just the latest message's text, and that total isn't available anywhere else. In practice this means the measured size can lag true size by up to one turn. Since the hook fires on every `Stop`, that lag self-corrects on the very next one, it isn't cause for concern, just don't expect the printed number to be accurate to the token on the turn where a threshold is first crossed.
 
 ### Can I use this with claude.ai or the API instead of Claude Code?
 

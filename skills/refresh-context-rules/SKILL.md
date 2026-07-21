@@ -17,6 +17,7 @@ Compute these from every layer that can override the shipped defaults (55/88/15,
 1. The script's own defaults, `hooks/context-check.sh`, the `CONTEXT_CHECK_WINDOW`/`WARN_PCT`/`HARD_PCT`/`STEP_PCT` fallback values.
 2. `~/.claude/hooks/context-check.conf`, if it exists, overrides the script defaults.
 3. The `env` block of `~/.claude/settings.json`, if it sets any `CONTEXT_CHECK_*` key there, overrides the config file.
+4. `~/.claude/hooks/context-check.observed.json`, if it exists, can pull the hard mark earlier still: read its `observed_pre_tokens` and report 90% of it as the effective hard mark whenever that's lower than what step 1-3 computed. Say so explicitly when this is the binding number, it's easy to mistake for the configured percentage otherwise.
 
 Note explicitly if `CONTEXT_CHECK_DISABLE_WARN` or `CONTEXT_CHECK_DISABLE_HARD` is set anywhere in that chain, since a disabled tier makes its own threshold moot. You cannot see an env var exported only in a shell profile (not in settings.json), since that's invisible to a file read; say so if you can't fully verify the chain instead of reporting a number you didn't actually confirm.
 

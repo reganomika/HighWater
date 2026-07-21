@@ -83,7 +83,10 @@ fi
 
 WINDOW="$CONTEXT_CHECK_WINDOW"
 WARN=$(( WINDOW * CONTEXT_CHECK_WARN_PCT / 100 ))   # "getting large" nudge, text-enforced
-HARD=$(( WINDOW * CONTEXT_CHECK_HARD_PCT / 100 ))   # "approaching ceiling", before the ~99% force-compact
+HARD=$(( WINDOW * CONTEXT_CHECK_HARD_PCT / 100 ))   # "approaching ceiling", before the harness force-compacts
+                                                     # (near ~99% of window in observed sessions, sometimes
+                                                     # earlier; calibrated downward below once a real
+                                                     # compaction is actually observed, see COMPACT_PRE below)
 STEP=$(( WINDOW * CONTEXT_CHECK_STEP_PCT / 100 ))   # re-nag cadence, both tiers. Derived from the
                                                      # window, not flat, so a smaller window keeps
                                                      # STEP inside the warn->hard band.
@@ -115,11 +118,18 @@ fi
 # the large transcripts this hook protects) and fall back to a full scan only if
 # the tail holds no usage row.
 # shellcheck disable=SC2016  # single quotes are deliberate: this is jq source, $vars are jq's, not the shell's
+# Same pass also looks for the most recent compact_boundary system event in
+# the scanned range: its compactMetadata.preTokens is the harness's own
+# record of the exact size a REAL auto-compaction fired at for this account,
+# used below to calibrate the hard mark instead of trusting an assumed
+# percentage alone. Rare event, piggybacks on whichever scan (tail or full)
+# already ran for the usage lookup rather than forcing an extra full read.
 METRIC_JQ='
-  [ inputs
-    | select(.type=="assistant")
-    | select((.isSidechain // false) == false)
-  ] as $rows
+  [ inputs ] as $all
+  | ( [ $all[]
+        | select(.type=="assistant")
+        | select((.isSidechain // false) == false)
+      ] ) as $rows
   | ( [ $rows[]
         | select(.message.usage != null and .message.model != null)
         | { s: ( (.message.usage.input_tokens // 0)
@@ -132,9 +142,13 @@ METRIC_JQ='
         | select(any(.message.content[]?; .type=="tool_use" and .name=="AskUserQuestion"))
         | (.timestamp // "") ]
       | map(select(. != "")) ) as $auq
+  | ( [ $all[]
+        | select(.type=="system" and .subtype=="compact_boundary")
+        | (.compactMetadata.preTokens // empty) ]
+      | last ) as $compact_pre
   | ($u | last) as $last
-  | if $last == null then "\t\t\t"
-    else "\($last.s)\t\($last.m)\t\($last.t)\t\(($auq | max) // "")"
+  | if $last == null then "\t\t\t\t"
+    else "\($last.s)\t\($last.m)\t\($last.t)\t\(($auq | max) // "")\t\($compact_pre // "")"
     end
 '
 
@@ -148,12 +162,54 @@ fi
 MODEL="$(printf '%s' "$LINE" | cut -f2)"
 MSG_TS="$(printf '%s' "$LINE" | cut -f3)"
 AUQ_TS="$(printf '%s' "$LINE" | cut -f4)"
+COMPACT_PRE="$(printf '%s' "$LINE" | cut -f5)"
+case "$COMPACT_PRE" in ''|*[!0-9]*) COMPACT_PRE="" ;; esac
 
 # No usable size (empty transcript, jq error): fail open.
 case "$SIZE" in
   ''|*[!0-9]*) exit 0 ;;
 esac
 [ -z "$MODEL" ] && exit 0
+
+# Calibrate the hard mark from a REAL observed auto-compaction instead of
+# only trusting an assumed percentage. If this scan caught a compact_boundary
+# event, persist its preTokens (account-wide, not per-session: a real
+# compaction point is evidence about the account, not one conversation, and
+# must survive past this event scrolling out of the tail -n 1200 window on
+# later runs, so it's read from the file unconditionally below, not
+# re-derived from the scan every time).
+#
+# The margin below that observed point is a FIXED token count, not a
+# percentage of it: what it needs to protect is "enough room left to
+# generate an AskUserQuestion checkpoint and a handoff prompt before the
+# real ceiling", and that cost doesn't scale with window size. A percentage
+# margin would over-protect on a 1M window (10% of ~1M is a ~100K buffer,
+# nobody needs that much runway to write a handoff) and, worse, could
+# under-protect if the window were ever smaller than assumed. CALIBRATION_MARGIN
+# is deliberately generous for a task that realistically costs low
+# thousands of tokens.
+#
+# Only ever lowers the mark, never raises it past what's configured, and
+# never below WARN: a low first observation makes the hook fire earlier
+# than strictly necessary, annoying but safe; calibration never gets to
+# make it fire later than the configured assumption would have on its own.
+# Malformed or missing observation file: ignored, no fail-closed path here.
+CALIBRATION_MARGIN=20000
+OBSERVED_FILE="$HOME/.claude/hooks/context-check.observed.json"
+if [ -n "$COMPACT_PRE" ]; then
+  jq -n --argjson p "$COMPACT_PRE" '{observed_pre_tokens: $p}' > "$OBSERVED_FILE" 2>/dev/null
+fi
+OBSERVED_PRE=""
+if [ -f "$OBSERVED_FILE" ]; then
+  OBSERVED_PRE="$(jq -r '.observed_pre_tokens // empty' "$OBSERVED_FILE" 2>/dev/null)"
+fi
+case "$OBSERVED_PRE" in ''|*[!0-9]*) OBSERVED_PRE="" ;; esac
+if [ -n "$OBSERVED_PRE" ] && [ "$OBSERVED_PRE" -gt "$CALIBRATION_MARGIN" ]; then
+  CALIBRATED_HARD=$(( OBSERVED_PRE - CALIBRATION_MARGIN ))
+  if [ "$CALIBRATED_HARD" -lt "$HARD" ] && [ "$CALIBRATED_HARD" -gt "$WARN" ]; then
+    HARD="$CALIBRATED_HARD"
+  fi
+fi
 
 STATE_DIR="$HOME/.claude/hooks/state"
 mkdir -p "$STATE_DIR" 2>/dev/null
@@ -276,7 +332,7 @@ fi
 
 # Fire hard: first crossing, an unresolved prose-dodge / dropped reason, or growth
 # past the post-ack cooldown. decision:block + stderr.
-REASON="Context boundary checkpoint (mechanical half of the CLAUDE.md task-boundary rule). The live context on ${MODEL} is ${SIZE} tokens, ${PCT}% of this session's ~${WINDOW}-token window, past the hard mark (${HARD}). The harness force-compacts near ~99%; do not wait for it, and the focused-work exception does NOT apply this close to the ceiling (CLAUDE.md trigger 3). You must call the AskUserQuestion tool now, before writing anything else: one single-select question, header \"Context\", multiSelect false, exactly these three options (translate the visible text into the conversation language, keep the meaning): \"New-chat handoff prompt\" (you generate a self-contained handoff prompt), \"Clear context, stay here\" (you tell the user to run /clear), \"Continue as-is\" (proceed unchanged). Precede the tool call with one line naming what you observed (size and %). Only if the AskUserQuestion tool is genuinely not available to you this turn, not merely inconvenient, state IN CAPS that auto-compaction is imminent and list those three options in text so the user can still choose."
+REASON="Context boundary checkpoint (mechanical half of the CLAUDE.md task-boundary rule). The live context on ${MODEL} is ${SIZE} tokens, ${PCT}% of this session's ~${WINDOW}-token window, past the hard mark (${HARD}). The harness force-compacts on its own before this session's context can grow indefinitely; do not wait for it, and the focused-work exception does NOT apply this close to the ceiling (CLAUDE.md trigger 3). You must call the AskUserQuestion tool now, before writing anything else: one single-select question, header \"Context\", multiSelect false, exactly these three options (translate the visible text into the conversation language, keep the meaning): \"New-chat handoff prompt\" (you generate a self-contained handoff prompt), \"Clear context, stay here\" (you tell the user to run /clear), \"Continue as-is\" (proceed unchanged). Precede the tool call with one line naming what you observed (size and %). Only if the AskUserQuestion tool is genuinely not available to you this turn, not merely inconvenient, state IN CAPS that auto-compaction is imminent and list those three options in text so the user can still choose."
 emit_block "$REASON"
 save_track "$SIZE" "hard" "$MSG_TS" false "$HARD_ACK_AT"
 exit 2

@@ -2,6 +2,14 @@
 
 Notable changes to this project. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-07-22
+
+### Added
+
+- Hard-mark self-calibration. The hook watches for `compact_boundary` events (Claude Code's own record of exactly where a real auto-compaction fired) and, the first time it sees one, remembers that token count in `~/.claude/hooks/context-check.observed.json`. From then on, the hard mark becomes `observed − 20000` whenever that's earlier than the configured percentage would fire, a fixed token margin since the room needed to generate a checkpoint doesn't scale with window size. Only ever lowers the mark, never raises it past the configured value, and never below the soft mark. See [CUSTOMIZE.md](CUSTOMIZE.md#hard-mark-self-calibration).
+- `tests/calibration.bats`: 8 tests covering persistence, the margin boundary, the never-raises and never-below-warn guards, and fail-open on a malformed observation file.
+- FAQ entries on how accurate the 88% assumption actually is (backed by 66 sampled real compactions: median ~99.98%, as early as ~93%, only 4/66 below 88%) and on transcript-read lag at `Stop` time.
+
 ## [0.1.2] - 2026-07-21
 
 Fixes from an independent review of the state machine and docs.
